@@ -1,0 +1,3 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+44;anomaly;2016-08-03 14:00:00;52704;2016-10-08 02:20:00;62138;Valve in water cooling system was left in wrong position after maintenance actions on 05-08-2020
+75;normal;2022-05-03 11:10:00;52992;2022-05-22 11:10:00;55728;

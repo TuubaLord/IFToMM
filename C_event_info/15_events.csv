@@ -1,0 +1,3 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+78;anomaly;2022-07-29 13:00:00;52560;2022-07-31 14:30:00;52857;P20_Grounding role brake disc + P20_cover-lightning-main-cabinet-hub
+64;normal;2027-09-22 00:30:00;52560;2027-10-02 00:30:00;54000;

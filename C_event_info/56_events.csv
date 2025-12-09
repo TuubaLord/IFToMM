@@ -1,0 +1,3 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+90;anomaly;2026-08-08 15:00:00;52848;2026-08-20 17:30:00;54591;COMMUNICATION FAULT BK1120 IN NC300 A2
+63;normal;2016-07-06 23:10:00;52704;2016-07-16 23:10:00;54144;

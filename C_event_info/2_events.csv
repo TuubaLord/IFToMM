@@ -1,0 +1,3 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+12;anomaly;2025-06-25 00:00:00;52560;2025-07-17 15:00:00;55818;10115 : Oil level error, two-pump mode + Oil Leakage Gear Oil Supply + 12019: Rotor brake B cannot be closed + P20_yaw carbon brush damaged
+36;normal;2016-08-16 19:50:00;52704;2016-08-29 21:00:00;54439;

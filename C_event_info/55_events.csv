@@ -1,0 +1,4 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+9;anomaly;2017-08-05 07:30:00;52992;2017-08-26 09:30:00;56028;PENDING19_PREV_YAW_Grease pump defective
+88;normal;2025-10-01 00:00:00;52704;2025-10-15 00:00:00;54720;
+57;normal;2029-04-27 05:40:00;52992;2029-05-09 05:40:00;54720;

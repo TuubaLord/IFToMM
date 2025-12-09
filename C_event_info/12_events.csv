@@ -1,0 +1,4 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+66;anomaly;2029-01-15 00:00:00;51696;2029-01-21 13:00:00;52638;Pitchfailure - defect Beckhoffcard, Axis 2, rectified on 23/01 - Anomalie liegt aber länger an als der Fehler, Batterien waren ok
+15;anomaly;2019-02-07 00:00:00;51984;2019-02-24 00:00:00;54432;Randomn small failures regarding pitch resulting in a longer standstill due to a defect pitch encoder (26/02)
+50;normal;2027-11-04 00:00:00;52128;2027-11-18 00:00:00;54144;

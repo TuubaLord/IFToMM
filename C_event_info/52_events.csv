@@ -1,0 +1,5 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+28;anomaly;2023-05-27 13:00:00;52704;2023-06-16 20:30:00;55629;P20_spinner_carbonbrush defekt + P20_Accumulators_hydraulic system
+39;anomaly;2022-10-18 13:00:00;52848;2022-10-23 15:20:00;53582;15004 : Safety chain relay open + 93005 : Gear oil cooler bypass valve
+54;normal;2023-02-02 09:20:00;52992;2023-02-13 09:20:00;54576;
+43;normal;2024-08-15 03:10:00;52992;2024-08-28 03:10:00;54864;

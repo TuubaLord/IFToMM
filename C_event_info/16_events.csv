@@ -1,0 +1,5 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+79;anomaly;2025-07-24 09:00:00;52704;2025-07-26 09:00:00;52992;Communication fault BK1120 in NC300
+30;anomaly;2027-12-14 00:00:00;52560;2028-01-05 15:40:00;55822;Pitch failure - defect fan on pitch motor
+46;normal;2024-05-09 06:50:00;52560;2024-05-23 03:30:00;54556;
+65;normal;2019-11-06 04:20:00;52992;2019-11-20 11:50:00;55053;

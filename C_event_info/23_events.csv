@@ -1,0 +1,4 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+70;anomaly;2022-11-09 14:00:00;52560;2022-11-29 17:30:00;55461;21002 : Axis 1 DC-link voltage low, batt
+80;normal;2018-10-07 02:10:00;52560;2018-10-21 10:10:00;54624;
+37;normal;2029-02-26 18:00:00;51552;2029-03-10 18:00:00;53280;

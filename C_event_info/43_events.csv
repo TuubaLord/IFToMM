@@ -1,0 +1,5 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+33;anomaly;2024-08-24 13:00:00;52848;2024-09-13 13:00:00;55728;P20_Blade3_Grease Collector missing
+11;anomaly;2022-10-16 12:30:00;52416;2022-11-07 10:30:00;55572;P20_DGUV-v3 RCD 28F1 NC310 defective + 0 : P20_Blades_Cabinet Caps missing
+61;normal;2017-05-08 00:00:00;52992;2017-05-22 00:00:00;55008;
+93;normal;2023-08-01 15:50:00;52704;2023-08-23 15:50:00;55872;

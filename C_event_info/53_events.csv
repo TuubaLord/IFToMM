@@ -1,0 +1,7 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+35;anomaly;2024-09-23 00:00:00;51696;2024-09-29 09:00:00;52614;"Turbine had several short standstills (max 8min) with failure ""Schwingungen Umrichter Drehmomenten Level 1"""
+16;anomaly;2027-12-22 00:00:00;51264;2028-01-05 23:50:00;53423;WEC in failure - hub battery charger defect
+76;anomaly;2020-01-09 00:00:00;51552;2020-01-10 16:50:00;51797;WEC in failure with pitch battery issues - rewiring
+1;normal;2026-10-01 00:00:00;51552;2026-10-12 00:00:00;53136;
+20;normal;2027-07-13 01:10:00;51696;2027-07-23 01:10:00;53136;
+60;normal;2025-02-16 05:30:00;52416;2025-02-27 05:30:00;54000;

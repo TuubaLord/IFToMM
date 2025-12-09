@@ -1,0 +1,3 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+5;anomaly;2020-02-03 00:00:00;52272;2020-02-06 15:00:00;52794;WEC in failure - current measurement own consumption
+59;normal;2020-02-17 00:00:00;52128;2020-03-02 00:00:00;54144;

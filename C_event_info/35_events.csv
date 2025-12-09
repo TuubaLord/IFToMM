@@ -1,0 +1,5 @@
+event_id;event_label;event_start;event_start_id;event_end;event_end_id;event_description
+31;anomaly;2027-01-17 00:00:00;52848;2027-01-24 02:00:00;53868;Communication and Pitchfailure - slip ring and Beckhoff card
+67;anomaly;2027-02-01 00:00:00;52704;2027-03-31 00:00:00;61056;Turbine has some issues with overpressure on the main transformer
+58;normal;2015-10-16 08:40:00;52992;2015-10-26 08:40:00;54432;
+48;normal;2020-04-25 12:00:00;52848;2020-05-08 12:00:00;54720;
