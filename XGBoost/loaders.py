@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 EVENT_PATH = "../CARE_To_Compare/Wind Farm C/datasets/"
 EVENT_INFO = "../CARE_To_Compare/Wind Farm C/event_info.csv"
-PCA_COMPONENTS = 170
+PCA_COMPONENTS = 100
 default_noise = False
 # def load_event_for_training(event_n):
 #     load_event(event_n)

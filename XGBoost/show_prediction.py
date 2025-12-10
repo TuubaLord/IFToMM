@@ -6,8 +6,10 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
+import matplotlib as mpl
 import math
 
+mpl.rcParams['figure.dpi'] = 600
 
 def smooth(scalars: list[float], weight: float) -> list[float]:
     """
@@ -29,7 +31,7 @@ def smooth(scalars: list[float], weight: float) -> list[float]:
 
     return smoothed
 
-def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False):
+def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False, display = False, test=None, train=None):
     """
     Plots true vs predicted values with an optional rolling average for the prediction.
     
@@ -84,14 +86,16 @@ def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_a
     plt.legend()
     plt.grid(True, alpha=0.5)
     plt.tight_layout()
-    plt.show()
+    if display:
+        plt.show()
+    else:
+        plt.savefig(f"results/case1/test_{test}_train_{train}.png")
 
 
-for i in [15, 67, 50]:
-
-    test_event = i# faulty 15 67 healthy 50
+def predict_and_plot(test, train):
+    test_event = test# faulty 15 67 healthy 50
     #train_events = [52, 21, 2, 23, 87, 74, 86, 82]
-    train_events = [28, 78, 30, 49, 31, 67, 16, 76]
+    train_events = train
     use_test = False
     #train_events = []
     train_noise = True
@@ -126,10 +130,88 @@ for i in [15, 67, 50]:
     y_pred = y_pred - y_pred[0:24 * 30].mean()
     y_pred = np.maximum(y_pred, 0)
     y_pred = np.minimum(y_pred, 1)
+    th = 0.8
+
 
     # 2. Apply Smoothing (Crucial for Autoencoders to reduce noise)
     # Window 144 = 24 hours (assuming 10 min intervals)
     #y_pred_smooth = pd.Series(y_pred_raw).rolling(window=144, min_periods=1).mean()
 
     # 3. Plot
-    plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24)
+    plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24, test=test, train=train)
+
+
+
+
+# tolppa 12: f 15, 66 h 50
+train = [66]
+test = 15
+predict_and_plot(test, train)
+train = [15]
+test = 66
+predict_and_plot(test, train)
+train = [15]
+test = 50
+predict_and_plot(test, train)
+
+#tolppa 16: f 79, 30 h 46, 65 | 79 is communication failure -> 30 and 79 comparisons not usable
+train = [79]
+test = 30
+predict_and_plot(test, train)
+train = [30]
+test = 79
+predict_and_plot(test, train)
+train = [30]
+test = 46
+predict_and_plot(test, train)
+train = [30]
+test = 65
+predict_and_plot(test, train)
+
+#tolppa 35: f 31, 67 h 58, 48
+train = [31]
+test = 67
+predict_and_plot(test, train)
+train = [67]
+test = 31
+predict_and_plot(test, train)
+train = [67]
+test = 58
+predict_and_plot(test, train)
+train = [67]
+test = 48
+predict_and_plot(test, train)
+
+#tolppa 52: f 28, 39 h 54, 43
+train = [28]
+test = 39
+predict_and_plot(test, train)
+train = [39]
+test = 28
+predict_and_plot(test, train)
+train = [28]
+test = 54
+predict_and_plot(test, train)
+train = [28]
+test = 43
+predict_and_plot(test, train)
+
+#tolppa 53: f 35, 16, 76 h 1, 20, 60 | 35 is 8 minute standstills, cannot be detected in 1h windows
+train = [76]
+test = 16
+predict_and_plot(test, train)
+train = [16]
+test = 35
+predict_and_plot(test, train)
+train = [16]
+test = 76
+predict_and_plot(test, train)
+train = [16]
+test = 1
+predict_and_plot(test, train)
+train = [16]
+test = 20
+predict_and_plot(test, train)
+train = [16]
+test = 60
+predict_and_plot(test, train)
