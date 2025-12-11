@@ -17,7 +17,9 @@ default_noise = False
 
 
 
-def load_event(event_n, noise = default_noise, window_size = 6, undersample = False, pca=None, drop47 = True):
+def load_event(event_n, noise = default_noise, window_size = 6, undersample = False, pca=None, drop47 = True, remove_middle=False):
+    if remove_middle and undersample:
+        raise ValueError("Cannot use both remove_middle and undersample options simultaneously.")
     X = None
     events = pd.read_csv(EVENT_INFO, sep=";")
     event_cls = None
@@ -84,11 +86,19 @@ def load_event(event_n, noise = default_noise, window_size = 6, undersample = Fa
     if undersample:
         anomaly_indices = np.where(y > 0.5)[0]
         normal_indices = np.where(y <= 0.5)[0]
-        #drop last 20 % of normal indeces
+        if len(anomaly_indices) != 0:
+            normal_indices = normal_indices[:int(len(normal_indices)*0.6)]
+            ratio = len(normal_indices) // len(anomaly_indices)
+            undersampled_normal_indices = normal_indices[::ratio]
+            selected_indices = np.concatenate([anomaly_indices, undersampled_normal_indices])
+            X = X[selected_indices]
+            y = y[selected_indices]
+            timestamps = timestamps[selected_indices]
+    if remove_middle:
+        anomaly_indices = np.where(y > 0.5)[0]
+        normal_indices = np.where(y <= 0.5)[0]
         normal_indices = normal_indices[:int(len(normal_indices)*0.6)]
-        ratio = len(normal_indices) // len(anomaly_indices)
-        undersampled_normal_indices = normal_indices[::ratio]
-        selected_indices = np.concatenate([anomaly_indices, undersampled_normal_indices])
+        selected_indices = np.concatenate([normal_indices, anomaly_indices])
         X = X[selected_indices]
         y = y[selected_indices]
         timestamps = timestamps[selected_indices]

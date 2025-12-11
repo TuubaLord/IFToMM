@@ -8,8 +8,18 @@ import pandas as pd
 from matplotlib.ticker import MaxNLocator
 import matplotlib as mpl
 import math
+from sklearn.metrics import confusion_matrix
+import json
 
 mpl.rcParams['figure.dpi'] = 600
+big_d = {}
+
+def min_max_magic(y_pred):
+    y_pred = y_pred - y_pred[0:24 * 30].mean()
+    y_pred = np.maximum(y_pred, 0)
+    y_pred = np.minimum(y_pred, 1)
+
+    return y_pred
 
 def smooth(scalars: list[float], weight: float) -> list[float]:
     """
@@ -31,7 +41,7 @@ def smooth(scalars: list[float], weight: float) -> list[float]:
 
     return smoothed
 
-def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False, display = False, test=None, train=None):
+def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False, display = False, test=None, train=None, dict = big_d, threshold=0.8, case_n=1):
     """
     Plots true vs predicted values with an optional rolling average for the prediction.
     
@@ -83,16 +93,19 @@ def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_a
     plt.ylim(-.05, 1.05)
     
     plt.xticks(rotation=45, ha='right')
-    plt.legend()
     plt.grid(True, alpha=0.5)
-    plt.tight_layout()
+    plt.hlines(y=threshold, color='grey', linestyle='--', label='Anomaly threshold', xmin=dates.min(), xmax=dates.max())
+    plt.legend()
+    plt.tight_layout()    
     if display:
         plt.show()
     else:
-        plt.savefig(f"results/case1/test_{test}_train_{train}.png")
+        plt.savefig(f"results/case{case_n}/test_{test}_train_{train}.png")
+        plt.close()
 
+def predict_and_plot(test, train, case_n=1, model_type = 3):
+    th = 0.8
 
-def predict_and_plot(test, train):
     test_event = test# faulty 15 67 healthy 50
     #train_events = [52, 21, 2, 23, 87, 74, 86, 82]
     train_events = train
@@ -119,7 +132,7 @@ def predict_and_plot(test, train):
     # X_test, y_test = X[X.shape[0]//2:], y[X.shape[0]//2:]
     # timestamp = timestamp[X.shape[0]//2:]
     X_test, y_test, timestamp = X, y, timestamp
-    model = get_model(type=3)
+    model = get_model(type=model_type)
 
 
     model.fit(X_train, y_train)
@@ -127,91 +140,243 @@ def predict_and_plot(test, train):
 
     # y_pred_raw = model.predict(X_test)
     y_pred = model.predict(X_test)
-    y_pred = y_pred - y_pred[0:24 * 30].mean()
-    y_pred = np.maximum(y_pred, 0)
-    y_pred = np.minimum(y_pred, 1)
-    th = 0.8
+    y_pred = min_max_magic(y_pred)
+    plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24, test=test, train=train, threshold=th, case_n=case_n)
+    
+    X_for_cm, y_for_cm, _ = load_event(test_event, undersample=False, pca=pca, remove_middle=True, window_size=6)
+    y_pred_for_cm = model.predict(X_for_cm)
+    y_pred_for_cm = min_max_magic(y_pred_for_cm)
+    
+    
+    # y_pred_class = (y_pred_for_cm >= th).astype(int)
 
+    # plt.plot(y_for_cm)
+    # plt.plot(y_pred_class)
+    # plt.show()
+
+    y_for_cm = y_for_cm[24*30:]
+    y_pred_for_cm = y_pred_for_cm[24*30:]
+
+    y_pred_for_cm = pd.Series(y_pred_for_cm).rolling(window=24, min_periods=1).median().to_numpy()
+    y_pred_class = (y_pred_for_cm >= th).astype(int)
+
+    cm = confusion_matrix(y_for_cm.astype(int), y_pred_class, labels=[0,1])
+    big_d[f"test_{test}_train_{train}"] = cm.tolist()
 
     # 2. Apply Smoothing (Crucial for Autoencoders to reduce noise)
     # Window 144 = 24 hours (assuming 10 min intervals)
     #y_pred_smooth = pd.Series(y_pred_raw).rolling(window=144, min_periods=1).mean()
 
     # 3. Plot
-    plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24, test=test, train=train)
+
+case_n = 3
+if case_n == 1:
+
+    # tolppa 12: f 15, 66 h 50
+    train = [66]
+    test = 15
+    predict_and_plot(test, train)
+    train = [15]
+    test = 66
+    predict_and_plot(test, train)
+    train = [15]
+    test = 50
+    predict_and_plot(test, train)
+
+    #tolppa 16: f 79, 30 h 46, 65 | 79 is communication failure -> 30 and 79 comparisons not usable
+    train = [79]
+    test = 30
+    predict_and_plot(test, train)
+    train = [30]
+    test = 79
+    predict_and_plot(test, train)
+    train = [30]
+    test = 46
+    predict_and_plot(test, train)
+    train = [30]
+    test = 65
+    predict_and_plot(test, train)
+
+    #tolppa 35: f 31, 67 h 58, 48
+    train = [31]
+    test = 67
+    predict_and_plot(test, train)
+    train = [67]
+    test = 31
+    predict_and_plot(test, train)
+    train = [67]
+    test = 58
+    predict_and_plot(test, train)
+    train = [67]
+    test = 48
+    predict_and_plot(test, train)
+
+    #tolppa 52: f 28, 39 h 54, 43
+    train = [28]
+    test = 39
+    predict_and_plot(test, train)
+    train = [39]
+    test = 28
+    predict_and_plot(test, train)
+    train = [28]
+    test = 54
+    predict_and_plot(test, train)
+    train = [28]
+    test = 43
+    predict_and_plot(test, train)
+
+    #tolppa 53: f 35, 16, 76 h 1, 20, 60 | 35 is 8 minute standstills, cannot be detected in 1h windows
+    train = [76]
+    test = 16
+    predict_and_plot(test, train)
+    train = [16]
+    test = 35
+    predict_and_plot(test, train)
+    train = [16]
+    test = 76
+    predict_and_plot(test, train)
+    train = [16]
+    test = 1
+    predict_and_plot(test, train)
+    train = [16]
+    test = 20
+    predict_and_plot(test, train)
+    train = [16]
+    test = 60
+    predict_and_plot(test, train)
+    with open("results/case1/cms.json", "w") as f:
+        json.dump(big_d, f, indent=4)
+
+if case_n == 2:
+    # train with other faulty, test with different turbine
+
+    #tolppa 12
+    train = [30, 31, 67, 28, 39, 16, 76]
+    test = 15
+    predict_and_plot(test, train, case_n=case_n)
+    test = 66
+    predict_and_plot(test, train, case_n=case_n)
+    test = 50
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 16
+    train = [15, 66, 31, 67, 28, 39, 16, 76]
+    test = 30
+    predict_and_plot(test, train, case_n=case_n)
+    test = 79
+    predict_and_plot(test, train, case_n=case_n)
+    test = 46
+    predict_and_plot(test, train, case_n=case_n)
+    test = 65
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 35
+    train = [15, 66, 30, 28, 39, 16, 76]
+    test = 31
+    predict_and_plot(test, train, case_n=case_n)
+    test = 67
+    predict_and_plot(test, train, case_n=case_n)
+    test = 58
+    predict_and_plot(test, train, case_n=case_n)
+    test = 48
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 52
+    train = [15, 66, 30, 31, 67, 16, 76]
+    test = 28
+    predict_and_plot(test, train, case_n=case_n)
+    test = 39
+    predict_and_plot(test, train, case_n=case_n)
+    test = 54
+    predict_and_plot(test, train, case_n=case_n)
+    test = 43
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 53
+    train = [15, 66, 30, 31, 67, 28, 39]
+    test = 16
+    predict_and_plot(test, train, case_n=case_n)
+    test = 76
+    predict_and_plot(test, train, case_n=case_n)
+    test = 35
+    predict_and_plot(test, train, case_n=case_n)
+    test = 20
+    predict_and_plot(test, train, case_n=case_n)
+    test = 60
+    predict_and_plot(test, train, case_n=case_n)
+    with open("results/case2/cms.json", "w") as f:
+        json.dump(big_d, f, indent=4)
 
 
 
+# normalize wiith healthy from tested tolppa
+if case_n == 3:
+# train with other faulty, test with different turbine
+#tolppa 12
+    train = [30, 31, 67, 28, 39, 16, 76, 50]
+    test = 15
+    predict_and_plot(test, train, case_n=case_n)
+    test = 66
+    predict_and_plot(test, train, case_n=case_n)
+    #test = 50 ei voida testaa, tolpassa vaa 1h
+    #predict_and_plot(test, train, case_n=case_n)
+    #tolppa 16
+    train = [15, 66, 31, 67, 28, 39, 16, 76, 65]
+    test = 30
+    predict_and_plot(test, train, case_n=case_n)
+    test = 79
+    predict_and_plot(test, train, case_n=case_n)
+    test = 46
+    predict_and_plot(test, train, case_n=case_n)
+    train = [15, 66, 31, 67, 28, 39, 16, 76, 46]
+    test = 65
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 35
+    train = [15, 66, 30, 28, 39, 16, 76, 48]
+    test = 31
+    predict_and_plot(test, train, case_n=case_n)
+    test = 67
+    predict_and_plot(test, train, case_n=case_n)
+    test = 58
+    predict_and_plot(test, train, case_n=case_n)
+    train = [15, 66, 30, 28, 39, 16, 76, 58] 
+    test = 48
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 52
+    train = [15, 66, 30, 31, 67, 16, 76, 43]
+    test = 28
+    predict_and_plot(test, train, case_n=case_n)
+    test = 39
+    predict_and_plot(test, train, case_n=case_n)
+    test = 54
+    predict_and_plot(test, train, case_n=case_n)
+    train = [15, 66, 30, 31, 67, 16, 76, 54]
+    test = 43
+    predict_and_plot(test, train, case_n=case_n)
+    #tolppa 53
+    train = [15, 66, 30, 31, 67, 28, 39, 60]
+    test = 16
+    predict_and_plot(test, train, case_n=case_n)
+    test = 76
+    predict_and_plot(test, train, case_n=case_n)
+    test = 35
+    predict_and_plot(test, train, case_n=case_n)
+    test = 20
+    predict_and_plot(test, train, case_n=case_n)
+    train = [15, 66, 30, 31, 67, 28, 39, 20]
+    test = 60
+    predict_and_plot(test, train, case_n=case_n)
 
-# tolppa 12: f 15, 66 h 50
-train = [66]
-test = 15
-predict_and_plot(test, train)
-train = [15]
-test = 66
-predict_and_plot(test, train)
-train = [15]
-test = 50
-predict_and_plot(test, train)
 
-#tolppa 16: f 79, 30 h 46, 65 | 79 is communication failure -> 30 and 79 comparisons not usable
-train = [79]
-test = 30
-predict_and_plot(test, train)
-train = [30]
-test = 79
-predict_and_plot(test, train)
-train = [30]
-test = 46
-predict_and_plot(test, train)
-train = [30]
-test = 65
-predict_and_plot(test, train)
-
-#tolppa 35: f 31, 67 h 58, 48
-train = [31]
-test = 67
-predict_and_plot(test, train)
-train = [67]
-test = 31
-predict_and_plot(test, train)
-train = [67]
-test = 58
-predict_and_plot(test, train)
-train = [67]
-test = 48
-predict_and_plot(test, train)
-
-#tolppa 52: f 28, 39 h 54, 43
-train = [28]
-test = 39
-predict_and_plot(test, train)
-train = [39]
-test = 28
-predict_and_plot(test, train)
-train = [28]
-test = 54
-predict_and_plot(test, train)
-train = [28]
-test = 43
-predict_and_plot(test, train)
-
-#tolppa 53: f 35, 16, 76 h 1, 20, 60 | 35 is 8 minute standstills, cannot be detected in 1h windows
-train = [76]
-test = 16
-predict_and_plot(test, train)
-train = [16]
-test = 35
-predict_and_plot(test, train)
-train = [16]
-test = 76
-predict_and_plot(test, train)
-train = [16]
-test = 1
-predict_and_plot(test, train)
-train = [16]
-test = 20
-predict_and_plot(test, train)
-train = [16]
-test = 60
-predict_and_plot(test, train)
+# anomaly detection healthy only
+if case_n == 31:
+    # train with other faulty, test with different turbine
+    model_type = 2
+    #tolppa 52
+    train = [54]
+    test = 28
+    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    test = 39
+    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    test = 43
+    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    # test = 43
+    # predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    with open(f"results/case{case_n}/cms.json", "w") as f:
+        json.dump(big_d, f, indent=4)
