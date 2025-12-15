@@ -10,10 +10,11 @@ import matplotlib as mpl
 import math
 from sklearn.metrics import confusion_matrix
 import json
+from sklearn.metrics import roc_auc_score
 
 mpl.rcParams['figure.dpi'] = 600
-big_d = {}
-
+cms = {}
+roc_aucs = {}
 def min_max_magic(y_pred):
     y_pred = y_pred - y_pred[0:24 * 30].mean()
     y_pred = np.maximum(y_pred, 0)
@@ -41,7 +42,7 @@ def smooth(scalars: list[float], weight: float) -> list[float]:
 
     return smoothed
 
-def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False, display = False, test=None, train=None, dict = big_d, threshold=0.8, case_n=1):
+def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_average=1, smoothen=False, display = False, test=None, train=None, dict = cms, threshold=0.23, case_n=1):
     """
     Plots true vs predicted values with an optional rolling average for the prediction.
     
@@ -103,7 +104,7 @@ def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_a
         plt.savefig(f"results/case{case_n}/test_{test}_train_{train}.png")
         plt.close()
 
-def predict_and_plot(test, train, case_n=1, model_type = 3):
+def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = False, normalize_with_healthy = False):
     th = 0.8
 
     test_event = test# faulty 15 67 healthy 50
@@ -137,13 +138,20 @@ def predict_and_plot(test, train, case_n=1, model_type = 3):
 
     model.fit(X_train, y_train)
     #model.fit(X_test, y_test)
-
+    if normalize_with_healthy:
+        healthy_X, _, _ = load_event(normalize_with_healthy, pca=pca, remove_middle=False, window_size=6, undersample = False)
+        healthy_limits = model.predict(healthy_X)
+        healthy_limits = min_max_magic(healthy_limits)
+        healthy_mean = healthy_limits.mean()
+        healthy_std = healthy_limits.std()
+        th = healthy_mean +  healthy_std
     # y_pred_raw = model.predict(X_test)
     y_pred = model.predict(X_test)
     y_pred = min_max_magic(y_pred)
     plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24, test=test, train=train, threshold=th, case_n=case_n)
     
-    X_for_cm, y_for_cm, _ = load_event(test_event, undersample=False, pca=pca, remove_middle=True, window_size=6)
+    X_for_cm, y_for_cm, _ = load_event(test_event, pca=pca, remove_middle=(not undersample_test), window_size=6, undersample = undersample_test)
+    
     y_pred_for_cm = model.predict(X_for_cm)
     y_pred_for_cm = min_max_magic(y_pred_for_cm)
     
@@ -161,7 +169,10 @@ def predict_and_plot(test, train, case_n=1, model_type = 3):
     y_pred_class = (y_pred_for_cm >= th).astype(int)
 
     cm = confusion_matrix(y_for_cm.astype(int), y_pred_class, labels=[0,1])
-    big_d[f"test_{test}_train_{train}"] = cm.tolist()
+
+
+    cms[f"test_{test}_train_{train}"] = cm.tolist()
+    return y_for_cm, y_pred_for_cm
 
     # 2. Apply Smoothing (Crucial for Autoencoders to reduce noise)
     # Window 144 = 24 hours (assuming 10 min intervals)
@@ -245,7 +256,7 @@ if case_n == 1:
     test = 60
     predict_and_plot(test, train)
     with open("results/case1/cms.json", "w") as f:
-        json.dump(big_d, f, indent=4)
+        json.dump(cms, f, indent=4)
 
 if case_n == 2:
     # train with other faulty, test with different turbine
@@ -301,7 +312,7 @@ if case_n == 2:
     test = 60
     predict_and_plot(test, train, case_n=case_n)
     with open("results/case2/cms.json", "w") as f:
-        json.dump(big_d, f, indent=4)
+        json.dump(cms, f, indent=4)
 
 
 
@@ -309,60 +320,61 @@ if case_n == 2:
 if case_n == 3:
 # train with other faulty, test with different turbine
 #tolppa 12
-    train = [30, 31, 67, 28, 39, 16, 76, 50]
+    train = [30, 31, 67, 28, 39, 16, 76]
     test = 15
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=50)
     test = 66
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=50)
     #test = 50 ei voida testaa, tolpassa vaa 1h
     #predict_and_plot(test, train, case_n=case_n)
     #tolppa 16
-    train = [15, 66, 31, 67, 28, 39, 16, 76, 65]
+    train = [15, 66, 31, 67, 28, 39, 16, 76]
     test = 30
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
     test = 79
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
     test = 46
-    predict_and_plot(test, train, case_n=case_n)
-    train = [15, 66, 31, 67, 28, 39, 16, 76, 46]
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
+    train = [15, 66, 31, 67, 28, 39, 16, 76]
     test = 65
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=46)
     #tolppa 35
-    train = [15, 66, 30, 28, 39, 16, 76, 48]
+    train = [15, 66, 30, 28, 39, 16, 76]
     test = 31
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
     test = 67
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
     test = 58
-    predict_and_plot(test, train, case_n=case_n)
-    train = [15, 66, 30, 28, 39, 16, 76, 58] 
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
+    train = [15, 66, 30, 28, 39, 16, 76] 
     test = 48
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=58)
     #tolppa 52
-    train = [15, 66, 30, 31, 67, 16, 76, 43]
+    train = [15, 66, 30, 31, 67, 16, 76]
     test = 28
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
     test = 39
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
     test = 54
-    predict_and_plot(test, train, case_n=case_n)
-    train = [15, 66, 30, 31, 67, 16, 76, 54]
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
+    train = [15, 66, 30, 31, 67, 16, 76]
     test = 43
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=54)
     #tolppa 53
-    train = [15, 66, 30, 31, 67, 28, 39, 60]
+    train = [15, 66, 30, 31, 67, 28, 39]
     test = 16
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
     test = 76
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
     test = 35
-    predict_and_plot(test, train, case_n=case_n)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
     test = 20
-    predict_and_plot(test, train, case_n=case_n)
-    train = [15, 66, 30, 31, 67, 28, 39, 20]
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
+    train = [15, 66, 30, 31, 67, 28, 39]
     test = 60
-    predict_and_plot(test, train, case_n=case_n)
-
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=20)
+    with open(f"results/case{case_n}/cms.json", "w") as f:
+        json.dump(cms, f, indent=4)
 
 # anomaly detection healthy only
 if case_n == 31:
@@ -379,4 +391,4 @@ if case_n == 31:
     # test = 43
     # predict_and_plot(test, train, case_n=case_n, model_type=model_type)
     with open(f"results/case{case_n}/cms.json", "w") as f:
-        json.dump(big_d, f, indent=4)
+        json.dump(cms, f, indent=4)
