@@ -1,7 +1,7 @@
 from loaders import load_event, load_events
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
-from helpers import get_model
+from helpers import get_model, sigmoid
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
@@ -11,16 +11,18 @@ import math
 from sklearn.metrics import confusion_matrix
 import json
 from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.ensemble import IsolationForest
 
 mpl.rcParams['figure.dpi'] = 600
 cms = {}
 roc_aucs = {}
 def min_max_magic(y_pred):
-    y_pred = y_pred - y_pred[0:24 * 30].mean()
-    y_pred = np.maximum(y_pred, 0)
-    y_pred = np.minimum(y_pred, 1)
+    # y_pred = y_pred - y_pred[0:24 * 30].mean()
+    #y_pred = np.maximum(y_pred, 0)
+    #y_pred = np.minimum(y_pred, 1)
 
-    return y_pred
+    return sigmoid(y_pred)
 
 def smooth(scalars: list[float], weight: float) -> list[float]:
     """
@@ -138,22 +140,55 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
 
     model.fit(X_train, y_train)
     #model.fit(X_test, y_test)
+    y_pred = None
     if normalize_with_healthy:
-        healthy_X, _, _ = load_event(normalize_with_healthy, pca=pca, remove_middle=False, window_size=6, undersample = False)
-        healthy_limits = model.predict(healthy_X)
-        healthy_limits = min_max_magic(healthy_limits)
-        healthy_mean = healthy_limits.mean()
-        healthy_std = healthy_limits.std()
-        th = healthy_mean +  healthy_std
-    # y_pred_raw = model.predict(X_test)
-    y_pred = model.predict(X_test)
-    y_pred = min_max_magic(y_pred)
+        healthy_X, _, _ = load_event(normalize_with_healthy, pca=pca, remove_middle=False, window_size=6, undersample=False)
+
+        healthy_leaves = model.apply(healthy_X)
+
+        leaf_encoder = OneHotEncoder(categories='auto', sparse_output=True, handle_unknown='ignore')
+        healthy_leaves_emb = leaf_encoder.fit_transform(healthy_leaves)
+
+        transfer_detector = IsolationForest(contamination=0.05, random_state=42, n_jobs=-1)
+        transfer_detector.fit(healthy_leaves_emb)
+            
+    if normalize_with_healthy:
+        test_leaves = model.apply(X_test)
+        
+        test_leaves_emb = leaf_encoder.transform(test_leaves)
+        
+        iso_preds = transfer_detector.predict(test_leaves_emb)
+        raw_preds = transfer_detector.score_samples(test_leaves_emb)
+        print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
+        y_pred = -1 * raw_preds
+        th = -raw_preds.mean() + 0.01
+        
+    else:
+        y_pred = model.predict(X_test)
+        y_pred = min_max_magic(y_pred)
+
+    # y_pred = model.predict(X_test)
+    # y_pred = min_max_magic(y_pred)
     plot_regression_results(timestamp, y_test, y_pred, test_event, rolling_average=24, test=test, train=train, threshold=th, case_n=case_n)
-    
+
     X_for_cm, y_for_cm, _ = load_event(test_event, pca=pca, remove_middle=(not undersample_test), window_size=6, undersample = undersample_test)
+    y_pred_for_cm = None
+    if normalize_with_healthy:
+        test_leaves = model.apply(X_for_cm)
+        
+        test_leaves_emb = leaf_encoder.transform(test_leaves)
+        
+        iso_preds = transfer_detector.predict(test_leaves_emb)
+        raw_preds = transfer_detector.score_samples(test_leaves_emb)
+        print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
+        y_pred_for_cm = -1 * raw_preds        
+        
+        
+    else:
+        y_pred_for_cm = model.predict(X_for_cm)
+        y_pred_for_cm = min_max_magic(y_pred_for_cm)
     
-    y_pred_for_cm = model.predict(X_for_cm)
-    y_pred_for_cm = min_max_magic(y_pred_for_cm)
+    #y_pred_for_cm = min_max_magic(y_pred_for_cm)
     
     
     # y_pred_class = (y_pred_for_cm >= th).astype(int)
@@ -162,8 +197,8 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
     # plt.plot(y_pred_class)
     # plt.show()
 
-    y_for_cm = y_for_cm[24*30:]
-    y_pred_for_cm = y_pred_for_cm[24*30:]
+    #y_for_cm = y_for_cm[24*30:]
+    #y_pred_for_cm = y_pred_for_cm[24*30:]
 
     y_pred_for_cm = pd.Series(y_pred_for_cm).rolling(window=24, min_periods=1).median().to_numpy()
     y_pred_class = (y_pred_for_cm >= th).astype(int)
@@ -172,7 +207,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
 
 
     cms[f"test_{test}_train_{train}"] = cm.tolist()
-    return y_for_cm, y_pred_for_cm
+    return y_for_cm.astype(int), y_pred_for_cm
 
     # 2. Apply Smoothing (Crucial for Autoencoders to reduce noise)
     # Window 144 = 24 hours (assuming 10 min intervals)
@@ -180,7 +215,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
 
     # 3. Plot
 
-case_n = 3
+case_n = 3333
 if case_n == 1:
 
     # tolppa 12: f 15, 66 h 50
@@ -195,11 +230,11 @@ if case_n == 1:
     predict_and_plot(test, train)
 
     #tolppa 16: f 79, 30 h 46, 65 | 79 is communication failure -> 30 and 79 comparisons not usable
-    train = [79]
-    test = 30
-    predict_and_plot(test, train)
-    train = [30]
-    test = 79
+    # train = [79]
+    # test = 30
+    # predict_and_plot(test, train)
+    # train = [30]
+    # test = 79
     predict_and_plot(test, train)
     train = [30]
     test = 46
@@ -240,9 +275,9 @@ if case_n == 1:
     train = [76]
     test = 16
     predict_and_plot(test, train)
-    train = [16]
-    test = 35
-    predict_and_plot(test, train)
+    #train = [16]
+    #test = 35
+    #predict_and_plot(test, train)
     train = [16]
     test = 76
     predict_and_plot(test, train)
@@ -320,7 +355,7 @@ if case_n == 2:
 if case_n == 3:
 # train with other faulty, test with different turbine
 #tolppa 12
-    train = [30, 31, 67, 28, 39, 16, 76]
+    train = [30, 31, 67, 28, 39, 16, 76, 50]
     test = 15
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=50)
     test = 66
@@ -328,67 +363,118 @@ if case_n == 3:
     #test = 50 ei voida testaa, tolpassa vaa 1h
     #predict_and_plot(test, train, case_n=case_n)
     #tolppa 16
-    train = [15, 66, 31, 67, 28, 39, 16, 76]
+    train = [15, 66, 31, 67, 28, 39, 16, 76, 65]
     test = 30
-    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
-    test = 79
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
     test = 46
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
-    train = [15, 66, 31, 67, 28, 39, 16, 76]
+    train = [15, 66, 31, 67, 28, 39, 16, 76, 46]
     test = 65
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=46)
     #tolppa 35
-    train = [15, 66, 30, 28, 39, 16, 76]
+    train = [15, 66, 30, 28, 39, 16, 76, 48]
     test = 31
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
     test = 67
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
     test = 58
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
-    train = [15, 66, 30, 28, 39, 16, 76] 
+    train = [15, 66, 30, 28, 39, 16, 76, 58] 
     test = 48
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=58)
     #tolppa 52
-    train = [15, 66, 30, 31, 67, 16, 76]
+    train = [15, 66, 30, 31, 67, 16, 76, 43]
     test = 28
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
     test = 39
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
     test = 54
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
-    train = [15, 66, 30, 31, 67, 16, 76]
+    train = [15, 66, 30, 31, 67, 16, 76, 54]
     test = 43
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=54)
     #tolppa 53
-    train = [15, 66, 30, 31, 67, 28, 39]
+    train = [15, 66, 30, 31, 67, 28, 39, 60]
     test = 16
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
     test = 76
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
-    test = 35
-    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
     test = 20
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
-    train = [15, 66, 30, 31, 67, 28, 39]
+    train = [15, 66, 30, 31, 67, 28, 39, 20]
     test = 60
     predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=20)
     with open(f"results/case{case_n}/cms.json", "w") as f:
         json.dump(cms, f, indent=4)
 
-# anomaly detection healthy only
-if case_n == 31:
-    # train with other faulty, test with different turbine
-    model_type = 2
-    #tolppa 52
-    train = [54]
-    test = 28
-    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+# Use faults from same windmill and different windmills.
+if case_n == 4:
+
+    # tolppa 12: f 15, 66 h 50
+    train = [66, 30, 31, 67, 28, 39, 16, 76, 50]
+    test = 15
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=50)
+    train = [15, 30, 31, 67, 28, 39, 16, 76, 50]
+    test = 66
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=50)
+    train = [15, 30, 31, 67, 28, 39, 16, 76, 50]
+    # test = 50
+    # predict_and_plot(test, train, case_n=case_n)
+
+    #tolppa 16: f 79, 30 h 46, 65 | 79 is communication failure -> 30 and 79 comparisons not usable
+    # train = [79]
+    # test = 30
+    # predict_and_plot(test, train)
+    # train = [30]
+    # test = 79
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
+    train = [15, 30, 31, 67, 28, 39, 16, 76, 50]
+    test = 46
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=65)
+    train = [15, 30, 31, 67, 28, 39, 16, 76, 50]
+    test = 65
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=46)
+
+    #tolppa 35: f 31, 67 h 58, 48
+    train = [15, 30, 31, 28, 39, 16, 76, 50]
+    test = 67
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
+    train = [15, 30, 67, 28, 39, 16, 76, 50]
+    test = 31
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
+    test = 58
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=48)
+    train = [15, 30, 67, 28, 39, 16, 76, 50]
+    test = 48
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=58)
+
+    #tolppa 52: f 28, 39 h 54, 43
+    train = [15, 30, 31, 67, 28, 16, 76, 50]
     test = 39
-    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
+    train = [15, 30, 31, 67, 39, 16, 76, 50]
+    test = 28
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
+    test = 54
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=43)
     test = 43
-    predict_and_plot(test, train, case_n=case_n, model_type=model_type)
-    # test = 43
-    # predict_and_plot(test, train, case_n=case_n, model_type=model_type)
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=54)
+
+    #tolppa 53: f 35, 16, 76 h 1, 20, 60 | 35 is 8 minute standstills, cannot be detected in 1h windows
+    train = [15, 30, 31, 67, 28, 39, 76, 50]
+    test = 16
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
+    #train = [16]
+    #test = 35
+    #predict_and_plot(test, train)
+    train = [15, 30, 31, 67, 28, 39, 16, 50]
+    test = 76
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
+    test = 1
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
+    test = 20
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=60)
+    test = 60
+    predict_and_plot(test, train, case_n=case_n, normalize_with_healthy=20)
     with open(f"results/case{case_n}/cms.json", "w") as f:
         json.dump(cms, f, indent=4)

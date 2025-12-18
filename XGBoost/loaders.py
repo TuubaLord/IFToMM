@@ -17,7 +17,7 @@ default_noise = False
 
 
 
-def load_event(event_n, noise = default_noise, window_size = 6, undersample = False, pca=None, drop47 = True, remove_middle=False):
+def load_event(event_n, noise = default_noise, window_size = 6, undersample = False, pca=None, filter_bloat_data = True, remove_middle=False):
     if remove_middle and undersample:
         raise ValueError("Cannot use both remove_middle and undersample options simultaneously.")
     X = None
@@ -39,16 +39,37 @@ def load_event(event_n, noise = default_noise, window_size = 6, undersample = Fa
     # use all (avg|max|min|std)
     # use all (sensor|wind_speed|power|reactive_power)
     regex_pattern = 'avg'
-    sensor47 = f'sensor_47_{regex_pattern}'
     sensor_pattern = re.compile(rf'^(sensor|wind_speed|power|reactive_power)_\d+_({regex_pattern})$')
-    if not drop47:
+    if not filter_bloat_data:
         selected_columns = [col for col in event.columns if sensor_pattern.match(col)]
         X = event[selected_columns].values
     else:
-    
+        sensor47 = f'sensor_47_{regex_pattern}'
+        sensor2 = f'power_2_{regex_pattern}'
+        sensor7 = f'sensor_7_{regex_pattern}'
+        sensor15 = f'sensor_15_{regex_pattern}'
+        sensor18 = f'sensor_18_{regex_pattern}'
+        sensor27 = f'sensor_27_{regex_pattern}'
+        sensor39 = f'sensor_39_{regex_pattern}'
+        sensor40 = f'sensor_40_{regex_pattern}'
+        sensor41 = f'sensor_41_{regex_pattern}'
+        sensor43 = f'sensor_43_{regex_pattern}'
+        sensor46 = f'sensor_46_{regex_pattern}'
         # 3a. Create a mask to select rows that should be KEPT (within the 48-52 range)
         keep_mask = (event[sensor47] >= 48) & \
-                    (event[sensor47] <= 52)
+                    (event[sensor47] <= 52) & \
+                    (event[sensor2] > 0) & \
+                    (event[sensor7] > 0) & \
+                    (event[sensor15] > 0) & \
+                    (event[sensor18] >= 0) & \
+                    (event[sensor27] > -5) & \
+                    (event[sensor39] >= 0.5) & \
+                    (event[sensor40] >= 10) & \
+                    (event[sensor41] >= -5) & \
+                    (event[sensor43] >= -100) & \
+                    (event[sensor46] >= -5) 
+                    
+                    
         
         # 3b. Apply the filter to the entire DataFrame
         event_filtered = event[keep_mask]
@@ -60,6 +81,8 @@ def load_event(event_n, noise = default_noise, window_size = 6, undersample = Fa
         X = event_filtered[selected_columns].values
         y = y[keep_mask]
         timestamps = timestamps[keep_mask]
+    
+
         
     if noise:
         noise_level = 0.01

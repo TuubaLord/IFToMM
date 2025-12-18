@@ -8,6 +8,42 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+def sigmoid_squared_log_obj(y_true: np.ndarray, y_pred: np.ndarray):
+    '''
+    Squared Log Error objective with Sigmoid transformation.
+    
+    y_pred: Raw logits (scores) from XGBoost
+    y_true: The actual labels
+    '''
+    # 1. Apply Sigmoid to get predictions in range (0, 1)
+    # y_pred comes in as raw logits (z), so we convert to p
+    p = sigmoid(y_pred)
+    
+    # 2. Compute gradients w.r.t the transformed prediction (p)
+    # These are the same formulas as your original templates, just using 'p' instead of 'predt'
+    # Gradient_p: dL/dp
+    grad_p = (np.log1p(p) - np.log1p(y_true)) / (p + 1)
+    
+    # Hessian_p: d2L/dp2
+    hess_p = ((-np.log1p(p) + np.log1p(y_true) + 1) / np.power(p + 1, 2))
+    
+    # 3. Apply Chain Rule to get gradients w.r.t the raw logits (z)
+    # derivative of sigmoid: p * (1 - p)
+    sigmoid_deriv = p * (1.0 - p)
+    
+    # Gradient_z = Gradient_p * p'
+    grad = grad_p * sigmoid_deriv
+    
+    # Hessian_z = Hessian_p * (p')^2 + Gradient_p * p''
+    # where p'' = p(1-p)(1-2p)
+    hess = hess_p * np.power(sigmoid_deriv, 2) + \
+           grad_p * (sigmoid_deriv * (1.0 - 2.0 * p))
+    
+    return grad, hess
+
 class LSTMAutoEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, seq_len):
         super(LSTMAutoEncoder, self).__init__()
@@ -184,12 +220,13 @@ def get_model(type):
         return model
     if type == 3:
         model = XGBRegressor(
-            objective='reg:squarederror', 
+            objective=sigmoid_squared_log_obj, 
             n_estimators=100, 
             learning_rate=0.1,
             random_state=42,
             n_jobs=-1,
-            max_depth=6
+            max_depth=4,
+            
         )
         return model
     if type == 4: 
