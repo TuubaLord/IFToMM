@@ -138,7 +138,7 @@ def load_events(event_ns, noise=default_noise, undersample = False, pca=True):
     all_X = []
     all_y = []
     
-    print(f"Loading {len(event_ns)} events: {event_ns}")
+    #print(f"Loading {len(event_ns)} events: {event_ns}")
 
     for n in event_ns:
         X_event, y_event, _ = load_event(n, noise=noise, undersample=undersample) 
@@ -149,9 +149,9 @@ def load_events(event_ns, noise=default_noise, undersample = False, pca=True):
     X_final = np.concatenate(all_X, axis=0)
     y_final = np.concatenate(all_y, axis=0)
     
-    print("-" * 30)
-    print(f"Load complete. Final X shape: {X_final.shape}")
-    print(f"Final Y shape: {y_final.shape}")
+    #print("-" * 30)
+    #print(f"Load complete. Final X shape: {X_final.shape}")
+    #print(f"Final Y shape: {y_final.shape}")
     if pca:
         n_components_target = PCA_COMPONENTS
         pca = PCA(n_components=n_components_target)

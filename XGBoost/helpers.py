@@ -221,11 +221,11 @@ def get_model(type):
     if type == 3:
         model = XGBRegressor(
             objective=sigmoid_squared_log_obj, 
-            n_estimators=100, 
-            learning_rate=0.1,
+            # n_estimators=100, 
+            # learning_rate=0.1,
             random_state=42,
             n_jobs=-1,
-            max_depth=4,
+            #max_depth=4,
             
         )
         return model

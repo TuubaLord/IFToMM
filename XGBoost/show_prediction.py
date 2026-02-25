@@ -2,11 +2,11 @@ from loaders import load_event, load_events
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 from helpers import get_model, sigmoid
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 from matplotlib.ticker import MaxNLocator
-import matplotlib as mpl
 import math
 from sklearn.metrics import confusion_matrix
 import json
@@ -15,6 +15,12 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import IsolationForest
 
 mpl.rcParams['figure.dpi'] = 600
+mpl.rcParams['xtick.labelsize'] = 16
+mpl.rcParams['xtick.major.size'] = 10
+mpl.rcParams['xtick.major.width'] = 2
+mpl.rcParams['ytick.labelsize'] = 16
+mpl.rcParams['ytick.major.size'] = 10
+mpl.rcParams['ytick.major.width'] = 2
 cms = {}
 roc_aucs = {}
 def min_max_magic(y_pred):
@@ -90,9 +96,9 @@ def plot_regression_results(timestamps, y_true, y_predicted, event_id, rolling_a
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
     # Labels and Titles
-    plt.title(f"Event {event_id}: True vs Predicted Healthiness")
-    plt.xlabel("Date")
-    plt.ylabel("Healthiness (0=Normal, 1=Anomaly)")
+    plt.title(f"Event {event_id}: True vs Predicted Healthiness", fontsize = 18)
+    plt.xlabel("Date", fontsize = 18)
+    plt.ylabel("Healthiness (0=Normal, 1=Anomaly)", fontsize = 18)
     plt.ylim(-.05, 1.05)
     
     plt.xticks(rotation=45, ha='right')
@@ -159,7 +165,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
         
         iso_preds = transfer_detector.predict(test_leaves_emb)
         raw_preds = transfer_detector.score_samples(test_leaves_emb)
-        print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
+        #print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
         y_pred = -1 * raw_preds
         th = -raw_preds.mean() + 0.01
         
@@ -180,7 +186,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
         
         iso_preds = transfer_detector.predict(test_leaves_emb)
         raw_preds = transfer_detector.score_samples(test_leaves_emb)
-        print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
+        #print(raw_preds.min(), raw_preds.max(), raw_preds.mean(), raw_preds.std())
         y_pred_for_cm = -1 * raw_preds        
         
         
@@ -207,6 +213,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
 
 
     cms[f"test_{test}_train_{train}"] = cm.tolist()
+
     return y_for_cm.astype(int), y_pred_for_cm
 
     # 2. Apply Smoothing (Crucial for Autoencoders to reduce noise)
@@ -215,7 +222,7 @@ def predict_and_plot(test, train, case_n=1, model_type = 3, undersample_test = F
 
     # 3. Plot
 
-case_n = 3333
+case_n = 67
 if case_n == 1:
 
     # tolppa 12: f 15, 66 h 50
